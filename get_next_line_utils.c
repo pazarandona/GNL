@@ -6,7 +6,7 @@
 /*   By: pazarand <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/02/19 17:38:32 by pazarand          #+#    #+#             */
-/*   Updated: 2024/02/20 15:23:49 by pazarand         ###   ########.fr       */
+/*   Updated: 2024/02/22 18:06:19 by pazarand         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -74,4 +74,39 @@ int process_buffer(char *buffer, int *buffer_index, char **line) {
 
     return line_completed;
 }
+
+ssize_t try_read_into_buffer(int fd, char *buffer, int *buffer_index, char **line) {
+    ssize_t bytes_read = read(fd, buffer, BUFFER_SIZE);
+    if (bytes_read == -1) {
+        buffer[0] = '\0'; // Limpia el buffer.
+        *buffer_index = 0; // Resetea el índice del buffer.
+        if (*line != NULL) {
+            free(*line); // Libera la línea si no es NULL.
+            *line = NULL; // Evita el uso de un puntero libre.
+        }
+        return -1; // Indica un error de lectura.
+    }
+    return bytes_read; // Retorna el número de bytes leídos.
+}
+
+char *handle_read_result(ssize_t bytes_read, char *buffer, char **line) {
+    if (bytes_read == 0) {
+        // Manejo de EOF
+        if (*line != NULL && **line) {
+            return *line; // Devuelve la línea si contiene algo.
+        } else {
+            // Si la línea está vacía o no se ha asignado, devuelve NULL.
+            if (*line != NULL) {
+                free(*line);
+                *line = NULL; // Asegura que el puntero no apunte a memoria liberada.
+            }
+            return NULL;
+        }
+    } else {
+        // Prepara el buffer para su procesamiento posterior.
+        buffer[bytes_read] = '\0';
+        return NULL; // Retorna NULL para indicar que no se ha completado la operación.
+    }
+}
+
 
