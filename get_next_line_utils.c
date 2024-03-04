@@ -6,7 +6,7 @@
 /*   By: pazarand <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/02/19 17:38:32 by pazarand          #+#    #+#             */
-/*   Updated: 2024/02/22 18:06:19 by pazarand         ###   ########.fr       */
+/*   Updated: 2024/03/04 20:23:37 by pazarand         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -40,18 +40,6 @@ char *append_char_to_string(char *str, char c) {
 }
 
 
-ssize_t read_to_buffer(int fd, char *buffer, int *buffer_index)
-{
-	ssize_t bytes_read = read(fd, buffer, BUFFER_SIZE);
-    if (bytes_read > 0)
-	{
-		buffer[bytes_read] = '\0';
-		*buffer_index = 0;
-	}
-	return bytes_read;
-}
-
-// Procesa el buffer para construir la línea.
 // Retorna 1 si se completó una línea, 0 si se necesita más lectura, o -1 si hay un error.
 int process_buffer(char *buffer, int *buffer_index, char **line) {
     int i = *buffer_index;
@@ -75,38 +63,25 @@ int process_buffer(char *buffer, int *buffer_index, char **line) {
     return line_completed;
 }
 
-ssize_t try_read_into_buffer(int fd, char *buffer, int *buffer_index, char **line) {
+// Intenta leer del archivo y manejar errores o EOF.
+// Retorna -1 para error, 0 para EOF, y el número de bytes leídos para una lectura exitosa.
+ssize_t try_read_from_file(int fd, char *buffer, int *buffer_index) {
     ssize_t bytes_read = read(fd, buffer, BUFFER_SIZE);
-    if (bytes_read == -1) {
-        buffer[0] = '\0'; // Limpia el buffer.
-        *buffer_index = 0; // Resetea el índice del buffer.
-        if (*line != NULL) {
-            free(*line); // Libera la línea si no es NULL.
-            *line = NULL; // Evita el uso de un puntero libre.
-        }
-        return -1; // Indica un error de lectura.
+    if (bytes_read <= 0) {
+        buffer[0] = '\0';
+        *buffer_index = 0;
+        return bytes_read; // -1 para error, 0 para EOF
     }
-    return bytes_read; // Retorna el número de bytes leídos.
+    buffer[bytes_read] = '\0';
+    return bytes_read;
 }
 
-char *handle_read_result(ssize_t bytes_read, char *buffer, char **line) {
-    if (bytes_read == 0) {
-        // Manejo de EOF
-        if (*line != NULL && **line) {
-            return *line; // Devuelve la línea si contiene algo.
-        } else {
-            // Si la línea está vacía o no se ha asignado, devuelve NULL.
-            if (*line != NULL) {
-                free(*line);
-                *line = NULL; // Asegura que el puntero no apunte a memoria liberada.
-            }
-            return NULL;
-        }
-    } else {
-        // Prepara el buffer para su procesamiento posterior.
-        buffer[bytes_read] = '\0';
-        return NULL; // Retorna NULL para indicar que no se ha completado la operación.
+// Maneja la decisión de qué retornar (la línea, NULL, o manejo de error).
+char *finalize_and_return_line(ssize_t bytes_read, char **line) {
+    if (bytes_read == -1 || (bytes_read == 0 && (*line == NULL || **line == '\0'))) {
+        if (*line != NULL) free(*line);
+        return NULL;
     }
+    return *line;
 }
-
 
